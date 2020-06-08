@@ -67,6 +67,9 @@ type MyApiHandler(log: ILogger<MyApiHandler>, ctx: IRemoteContext) =
                 log.LogInformation("User {0} doubling {1}", ctx.HttpContext.User.Identity.Name, i)
                 return i * 2
             }
+            getUtcTime = fun time -> async {
+                return time.UtcDateTime
+            }
         }
 
 type Startup(config: IConfiguration) =
@@ -78,7 +81,7 @@ type Startup(config: IConfiguration) =
             |> ignore
         services
             .AddRemoting<MyApiHandler>()
-            .AddBoleroHost()
+            .AddBoleroHost(prerendered = false)
             .AddServerSideBlazor()
         |> ignore
 

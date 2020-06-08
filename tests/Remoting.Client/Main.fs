@@ -38,6 +38,7 @@ type MyApi =
         logout : unit -> Async<unit>
         getLogin : unit -> Async<string>
         authDouble : int -> Async<int>
+        getUtcTime : DateTimeOffset -> Async<DateTime>
     }
 
     interface IRemoteService with
@@ -58,6 +59,7 @@ type Model =
         currentLogin : option<string>
         authDoubleInput : int
         authDoubleResult : string
+        now : DateTime option
     }
 
 let InitModel =
@@ -71,6 +73,7 @@ let InitModel =
         currentLogin = None
         authDoubleInput = 0
         authDoubleResult = ""
+        now = None
     }
 
 type Message =
@@ -80,6 +83,7 @@ type Message =
     | RefreshItems
     | AddItem
     | RemoveItem of int
+    | TimeRefreshed of DateTime
     | ItemsRefreshed of Map<int, string>
     | GetLogin
     | SetLoginInput of string
@@ -102,7 +106,10 @@ let Update (myApi: MyApi) msg model =
         { model with currentValue = v }, []
     | RefreshItems ->
         model,
-        Cmd.ofAsync myApi.getItems () ItemsRefreshed Exn
+        Cmd.batch [
+            Cmd.ofAsync myApi.getItems () ItemsRefreshed Exn
+            Cmd.ofAsync myApi.getUtcTime DateTimeOffset.Now TimeRefreshed Exn
+        ]
     | AddItem ->
         model,
         Cmd.ofAsync myApi.setItem (model.currentKey, model.currentValue)
@@ -113,6 +120,8 @@ let Update (myApi: MyApi) msg model =
             (fun () -> RefreshItems) Exn
     | ItemsRefreshed items ->
         { model with items = items; lastError = None }, []
+    | TimeRefreshed time ->
+        { model with now = Some time }, Cmd.none
     | GetLogin ->
         model, Cmd.ofAuthorized myApi.getLogin () LoggedIn Exn
     | SetLoginInput s ->
